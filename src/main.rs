@@ -3,7 +3,8 @@ use eframe::{
     App,
 };
 use rfd::FileDialog;
-use image::ImageReader;
+use image::{ImageReader, DynamicImage, imageops::FilterType, GenericImageView};
+
 
 pub struct CatDogApp {
     selected_path: Option<String>,
@@ -33,9 +34,10 @@ impl App for CatDogApp {
 
                     if let Ok(reader) = ImageReader::open(&path) {
                         if let Ok(img) = reader.decode() {
+                            // Prepare texture for display
                             let size = [img.width() as usize, img.height() as usize];
-                            let img = img.to_rgba8();
-                            let pixels = img.as_flat_samples();
+                            let img_rgba = img.to_rgba8();
+                            let pixels = img_rgba.as_flat_samples();
                             let color_image = ColorImage::from_rgba_unmultiplied(
                                 size,
                                 pixels.as_slice(),
@@ -43,6 +45,10 @@ impl App for CatDogApp {
                             self.texture = Some(
                                 ctx.load_texture("selected_image", color_image, Default::default()),
                             );
+
+                            // Prepare image data for AI model
+                            let input_tensor = prepare_image(&img);
+                            println!("Prepared input tensor length: {}", input_tensor.len());
                         }
                     }
                 }
@@ -68,6 +74,22 @@ impl App for CatDogApp {
             }
         });
     }
+}
+
+fn prepare_image(img: &DynamicImage) -> Vec<f32> {
+    let resized = img.resize_exact(224, 224, FilterType::Nearest);
+    let mut data = Vec::with_capacity(224 * 224 * 3);
+
+    for y in 0..224 {
+        for x in 0..224 {
+            let pixel = resized.get_pixel(x, y);
+            data.push(pixel[0] as f32 / 255.0);
+            data.push(pixel[1] as f32 / 255.0);
+            data.push(pixel[2] as f32 / 255.0);
+        }
+    }
+
+    data
 }
 
 fn main() -> Result<(), eframe::Error> {
