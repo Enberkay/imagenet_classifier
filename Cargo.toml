@@ -6,4 +6,6 @@ edition = "2024"
 [dependencies]
 eframe = "0.27"
 rfd = "0.14"
+image = "0.25"
+
 
